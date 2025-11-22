@@ -2,7 +2,7 @@ import { CheckCircle2, Circle, Clock, Trash2, Calendar as CalendarIcon } from "l
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { Checkbox } from "./ui/checkbox";
-import type { Task, Member } from "../App";
+import type { Task, Member } from "@/app/page";
 
 interface TasksListProps {
   tasks: Task[];

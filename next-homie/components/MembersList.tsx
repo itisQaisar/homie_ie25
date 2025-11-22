@@ -1,6 +1,6 @@
 import { UserCircle, Trash2 } from "lucide-react";
 import { Button } from "./ui/button";
-import type { Member } from "../App";
+import type { Member } from "@/app/page";
 
 interface MembersListProps {
   members: Member[];

@@ -21,7 +21,7 @@ import {
 import { Calendar } from "./ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { CalendarIcon } from "lucide-react";
-import type { Member } from "../App";
+import type { Member } from "@/app/page";
 
 interface AddTaskDialogProps {
   open: boolean;

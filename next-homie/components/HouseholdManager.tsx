@@ -8,7 +8,7 @@ import { AddHouseDialog } from "./AddHouseDialog";
 import { AddMemberDialog } from "./AddMemberDialog";
 import { AddTaskDialog } from "./AddTaskDialog";
 import { useState } from "react";
-import type { House, Member, Task } from "../App";
+import type { House, Member, Task } from "@/app/page";
 
 interface HouseholdManagerProps {
   houses: House[];

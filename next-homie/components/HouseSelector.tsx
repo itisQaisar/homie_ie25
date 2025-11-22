@@ -1,7 +1,7 @@
 import { Home, Plus, Trash2 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
-import type { House } from "../App";
+import type { House } from "@/app/page";
 
 interface HouseSelectorProps {
   houses: House[];
