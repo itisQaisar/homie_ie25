@@ -1,10 +1,15 @@
 "use client";
-import { HouseholdManager } from "@/components/HouseholdManager";
-import { LoginPage } from "@/components/LoginPage";
-import { ProfilePage } from "@/components/ProfilePage";
-import { SignupPage } from "@/components/SignupPage";
-import { useState } from "react";
 
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext"; // Ensure you have created this file
+import { signOut } from "firebase/auth";
+import { auth } from "@/lib/firebase"; // Ensure you have created this file
+import { HouseholdManager } from "@/components/HouseholdManager";
+import { ProfilePage } from "@/components/ProfilePage";
+import { Loader2 } from "lucide-react";
+
+// --- Interfaces ---
 export interface House {
   id: string;
   name: string;
@@ -26,7 +31,7 @@ export interface Task {
   assignedTo: string; // member id
   deadline: Date;
   completed: boolean;
-  completedAt?: Date; // Track when task was completed
+  completedAt?: Date;
   createdAt: Date;
 }
 
@@ -38,54 +43,51 @@ export interface Alert {
   createdAt: Date;
 }
 
-interface User {
-  name: string;
-  email: string;
-}
-
 export default function App() {
-  const [user, setUser] = useState<User | null>(null);
-  const [authView, setAuthView] = useState<"login" | "signup">("login");
-  const [currentView, setCurrentView] = useState<"dashboard" | "profile">(
-    "dashboard"
-  );
+  // 1. Get Global Auth State
+  const { user, loading } = useAuth();
+  const router = useRouter();
+
+  const [currentView, setCurrentView] = useState<"dashboard" | "profile">("dashboard");
+  
+  // 2. Local Data State
+  // NOTE: These currently reset on refresh. 
+  // The next step in development would be to replace these useStates with Firestore hooks.
   const [houses, setHouses] = useState<House[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [selectedHouseId, setSelectedHouseId] = useState<string | null>(null);
 
-  // Authentication handlers
-  const handleLogin = (userData: User) => {
-    setUser(userData);
-  };
-
-  const handleSignup = (userData: User) => {
-    setUser(userData);
-  };
-
-  const handleLogout = () => {
-    setUser(null);
-    setAuthView("login");
-  };
-
-  // If not logged in, show authentication pages
-  if (!user) {
-    if (authView === "signup") {
-      return (
-        <SignupPage
-          onSignup={handleSignup}
-          onSwitchToLogin={() => setAuthView("login")}
-        />
-      );
+  // 3. Protect the Route: Redirect to login if not authenticated
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push("/login");
     }
+  }, [user, loading, router]);
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      // Redirect is handled by the useEffect above once user becomes null
+    } catch (error) {
+      console.error("Error signing out", error);
+    }
+  };
+
+  // 4. Loading State
+  if (loading) {
     return (
-      <LoginPage
-        onLogin={handleLogin}
-        onSwitchToSignup={() => setAuthView("signup")}
-      />
+      <div className="min-h-screen flex items-center justify-center bg-orange-50">
+        <Loader2 className="w-8 h-8 animate-spin text-orange-600" />
+      </div>
     );
   }
+
+  // 5. Guard Clause: Don't render dashboard if no user
+  if (!user) return null;
+
+  // --- Logic Functions ---
 
   const addHouse = (name: string) => {
     const newHouse: House = {
@@ -117,14 +119,12 @@ export default function App() {
     };
     setMembers([...members, newMember]);
 
-    // Create an alert for new member
     const houseName = houses.find((h) => h.id === houseId)?.name || "household";
     addAlert("New Member Added", `${name} has been added to ${houseName}.`);
   };
 
   const deleteMember = (id: string) => {
     setMembers(members.filter((m) => m.id !== id));
-    // Optionally unassign tasks from this member
     setTasks(
       tasks.map((t) => (t.assignedTo === id ? { ...t, assignedTo: "" } : t))
     );
@@ -153,7 +153,6 @@ export default function App() {
   const toggleTaskCompletion = (id: string) => {
     const task = tasks.find((t) => t.id === id);
     if (task && !task.completed) {
-      // Task is being completed, create an alert
       const member = members.find((m) => m.id === task.assignedTo);
       addAlert(
         "Task Completed",
@@ -198,20 +197,14 @@ export default function App() {
     setAlerts(alerts.map((a) => (a.id === id ? { ...a, seen: true } : a)));
   };
 
-  const deleteAlert = (id: string) => {
-    setAlerts(alerts.filter((a) => a.id !== id));
-  };
-
   const leaveHousehold = () => {
     if (selectedHouseId) {
       setSelectedHouseId(null);
-      // Create an alert
       addAlert("Left Household", `You have left the household.`);
     }
     setCurrentView("dashboard");
   };
 
-  // Get tasks completed today
   const getTasksCompletedToday = () => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -223,8 +216,9 @@ export default function App() {
     });
   };
 
+  // --- Render ---
   return (
-    <div className="min-h-screen bg-linear-to-br from-orange-50 to-amber-50">
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-50">
       {currentView === "dashboard" ? (
         <HouseholdManager
           houses={houses}
@@ -232,7 +226,8 @@ export default function App() {
           tasks={tasks}
           alerts={alerts}
           selectedHouseId={selectedHouseId}
-          userName={user.name}
+          // Map Firebase User to component props
+          userName={user.displayName || user.email?.split('@')[0] || "User"}
           onSelectHouse={setSelectedHouseId}
           onAddHouse={addHouse}
           onDeleteHouse={deleteHouse}
@@ -248,8 +243,8 @@ export default function App() {
         />
       ) : (
         <ProfilePage
-          userName={user.name}
-          userEmail={user.email}
+          userName={user.displayName || user.email?.split('@')[0] || "User"}
+          userEmail={user.email || ""}
           currentHouseName={houses.find((h) => h.id === selectedHouseId)?.name}
           tasksCompletedToday={getTasksCompletedToday()}
           members={members}
