@@ -63,10 +63,7 @@ export function AddHouseDialog({
             >
               Cancel
             </Button>
-            <Button
-              type="submit"
-              disabled={!name.trim()}
-            >
+            <Button type="submit" disabled={!name.trim()}>
               Add Household
             </Button>
           </DialogFooter>

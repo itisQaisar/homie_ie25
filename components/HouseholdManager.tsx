@@ -1,4 +1,4 @@
-import { Home, Users, ListTodo, Plus } from "lucide-react";
+import { Home, Users, ListTodo, Plus, LogOut } from "lucide-react";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 import { HouseSelector } from "./HouseSelector";
@@ -7,39 +7,42 @@ import { TasksList } from "./TasksList";
 import { AddHouseDialog } from "./AddHouseDialog";
 import { AddMemberDialog } from "./AddMemberDialog";
 import { AddTaskDialog } from "./AddTaskDialog";
+import { AlertDialog } from "./AlertDialog";
 import { useState } from "react";
-import type { House, Member, Task } from "@/app/page";
+import type { House, Member, Task, Alert } from "@/app/page";
 
 interface HouseholdManagerProps {
   houses: House[];
   members: Member[];
   tasks: Task[];
+  alerts: Alert[];
   selectedHouseId: string | null;
+  userName?: string;
   onSelectHouse: (id: string) => void;
   onAddHouse: (name: string) => void;
   onDeleteHouse: (id: string) => void;
-  onAddMember: (
-    houseId: string,
-    name: string,
-    role?: string,
-  ) => void;
+  onAddMember: (houseId: string, name: string, role?: string) => void;
   onDeleteMember: (id: string) => void;
   onAddTask: (
     houseId: string,
     title: string,
     description: string,
     assignedTo: string,
-    deadline: Date,
+    deadline: Date
   ) => void;
   onToggleTask: (id: string) => void;
   onDeleteTask: (id: string) => void;
   onUpdateTask: (id: string, updates: Partial<Task>) => void;
+  onLogout?: () => void;
+  onProfileClick: () => void;
+  onAlertClick: (alertId: string) => void;
 }
 
 export function HouseholdManager({
   houses,
   members,
   tasks,
+  alerts,
   selectedHouseId,
   onSelectHouse,
   onAddHouse,
@@ -50,33 +53,40 @@ export function HouseholdManager({
   onToggleTask,
   onDeleteTask,
   onUpdateTask,
+  userName,
+  onLogout,
+  onProfileClick,
+  onAlertClick,
 }: HouseholdManagerProps) {
   const [showAddHouse, setShowAddHouse] = useState(false);
   const [showAddMember, setShowAddMember] = useState(false);
   const [showAddTask, setShowAddTask] = useState(false);
+  const [selectedAlertId, setSelectedAlertId] = useState<string | null>(null);
 
-  const selectedHouse = houses.find(
-    (h) => h.id === selectedHouseId,
-  );
-  const houseMembers = members.filter(
-    (m) => m.houseId === selectedHouseId,
-  );
-  const houseTasks = tasks.filter(
-    (t) => t.houseId === selectedHouseId,
+  const selectedHouse = houses.find((h) => h.id === selectedHouseId);
+  const houseMembers = members.filter((m) => m.houseId === selectedHouseId);
+  const houseTasks = tasks.filter((t) => t.houseId === selectedHouseId);
+
+  const handleAlertClick = (alertId: string) => {
+    onAlertClick(alertId);
+    setSelectedAlertId(alertId);
+  };
+
+  const selectedAlert = alerts.find((a) => a.id === selectedAlertId);
+  // Sort alerts by date, most recent first
+  const sortedAlerts = [...alerts].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   );
 
   return (
     <div className="container mx-auto p-6 max-w-7xl">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-4xl mb-2 flex items-center gap-3">
-          <Home className="w-10 h-10 text-orange-600" />
-          Homies: Household Task Organiser
+        <h1 className="text-2xl lg:text-4xl mb-2 flex items-center gap-3">
+          <Home className="w-10 h-10 text-orange-600" /> Homies: Harmony in
+          Every Home
         </h1>
-        <p className="text-gray-600">
-          Manage your household tasks, members, and stay
-          organized
-        </p>
+        <p className="text-gray-600">Organize Shared Living, Effortlessly</p>
       </div>
 
       {/* House Selector */}
@@ -84,9 +94,12 @@ export function HouseholdManager({
         <HouseSelector
           houses={houses}
           selectedHouseId={selectedHouseId}
+          alerts={sortedAlerts}
           onSelectHouse={onSelectHouse}
           onAddHouse={() => setShowAddHouse(true)}
           onDeleteHouse={onDeleteHouse}
+          onProfileClick={onProfileClick}
+          onAlertClick={handleAlertClick}
         />
       </div>
 
@@ -99,10 +112,7 @@ export function HouseholdManager({
                 <Users className="w-5 h-5 text-orange-600" />
                 Members
               </h2>
-              <Button
-                size="sm"
-                onClick={() => setShowAddMember(true)}
-              >
+              <Button size="sm" onClick={() => setShowAddMember(true)}>
                 <Plus className="w-4 h-4" />
               </Button>
             </div>
@@ -149,9 +159,7 @@ export function HouseholdManager({
       ) : (
         <Card className="p-12 text-center">
           <Home className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-          <h3 className="mb-2 text-gray-600">
-            No household selected
-          </h3>
+          <h3 className="mb-2 text-gray-600">No household selected</h3>
           <p className="text-gray-500 mb-4">
             Create a household to get started
           </p>
@@ -168,6 +176,11 @@ export function HouseholdManager({
         onOpenChange={setShowAddHouse}
         onAddHouse={onAddHouse}
       />
+      <AlertDialog
+        alert={selectedAlert || null}
+        open={!!selectedAlertId}
+        onOpenChange={(open) => !open && setSelectedAlertId(null)}
+      />
       {selectedHouseId && (
         <>
           <AddMemberDialog
@@ -181,23 +194,32 @@ export function HouseholdManager({
             open={showAddTask}
             onOpenChange={setShowAddTask}
             members={houseMembers}
-            onAddTask={(
-              title,
-              description,
-              assignedTo,
-              deadline,
-            ) =>
+            onAddTask={(title, description, assignedTo, deadline) =>
               onAddTask(
                 selectedHouseId,
                 title,
                 description,
                 assignedTo,
-                deadline,
+                deadline
               )
             }
           />
         </>
       )}
+
+      {/* Logout Button */}
+      {/* {onLogout && userName && (
+        <div className="mt-6">
+          <Button
+            size="sm"
+            onClick={onLogout}
+            className="bg-red-500 hover:bg-red-600"
+          >
+            <LogOut className="w-4 h-4 mr-2" />
+            Logout {userName}
+          </Button>
+        </div>
+      )} */}
     </div>
   );
 }
