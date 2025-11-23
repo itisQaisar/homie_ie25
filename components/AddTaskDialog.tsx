@@ -122,7 +122,11 @@ export function AddTaskDialog({
             </div>
             <div className="space-y-2">
               <Label>Deadline</Label>
-              <Popover open={calendarOpen} onOpenChange={setCalendarOpen} modal={false}>
+              <Popover
+                open={calendarOpen}
+                onOpenChange={setCalendarOpen}
+                modal={false}
+              >
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"

@@ -74,10 +74,7 @@ export function AddMemberDialog({
             >
               Cancel
             </Button>
-            <Button
-              type="submit"
-              disabled={!name.trim()}
-            >
+            <Button type="submit" disabled={!name.trim()}>
               Add Member
             </Button>
           </DialogFooter>

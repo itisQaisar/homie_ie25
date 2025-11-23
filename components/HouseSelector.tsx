@@ -1,36 +1,54 @@
-import { Home, Plus, Trash2 } from "lucide-react";
+import { Home, Plus, Trash2, User } from "lucide-react";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
-import type { House } from "@/app/page";
+import { AlertDropdown } from "./AlertDropdown";
+import type { House, Alert } from "@/app/page";
 
 interface HouseSelectorProps {
   houses: House[];
   selectedHouseId: string | null;
+  alerts: Alert[];
   onSelectHouse: (id: string) => void;
   onAddHouse: () => void;
   onDeleteHouse: (id: string) => void;
+  onProfileClick: () => void;
+  onAlertClick: (alertId: string) => void;
 }
 
 export function HouseSelector({
   houses,
   selectedHouseId,
+  alerts,
   onSelectHouse,
   onAddHouse,
   onDeleteHouse,
+  onProfileClick,
+  onAlertClick,
 }: HouseSelectorProps) {
   return (
     <div>
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-gray-700">Your Households</h3>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={onAddHouse}
-          className="border-orange-300 text-orange-600 hover:bg-orange-50"
-        >
-          <Plus className="w-4 h-4 mr-1" />
-          Add Household
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onProfileClick}
+            className="border-orange-300 text-orange-600 hover:bg-orange-50"
+          >
+            <User className="w-4 h-4" />
+          </Button>
+          <AlertDropdown alerts={alerts} onAlertClick={onAlertClick} />
+          {/* <Button
+            variant="outline"
+            size="sm"
+            onClick={onAddHouse}
+            className="border-orange-300 text-orange-600 hover:bg-orange-50"
+          >
+            <Plus className="w-4 h-4 mr-1" />
+            Add Household
+          </Button> */}
+        </div>
       </div>
       <div className="flex gap-3 flex-wrap">
         {houses.map((house) => (

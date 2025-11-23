@@ -1,4 +1,10 @@
-import { CheckCircle2, Circle, Clock, Trash2, Calendar as CalendarIcon } from "lucide-react";
+import {
+  CheckCircle2,
+  Circle,
+  Clock,
+  Trash2,
+  Calendar as CalendarIcon,
+} from "lucide-react";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { Checkbox } from "./ui/checkbox";
@@ -38,9 +44,12 @@ export function TasksList({
       (deadlineDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
     );
 
-    if (diffDays < 0) return { status: "overdue", color: "bg-red-100 text-red-700" };
-    if (diffDays === 0) return { status: "today", color: "bg-orange-100 text-orange-700" };
-    if (diffDays <= 3) return { status: "soon", color: "bg-yellow-100 text-yellow-700" };
+    if (diffDays < 0)
+      return { status: "overdue", color: "bg-red-100 text-red-700" };
+    if (diffDays === 0)
+      return { status: "today", color: "bg-orange-100 text-orange-700" };
+    if (diffDays <= 3)
+      return { status: "soon", color: "bg-yellow-100 text-yellow-700" };
     return { status: "upcoming", color: "bg-green-100 text-green-700" };
   };
 
@@ -105,7 +114,10 @@ export function TasksList({
                   </Button>
                 </div>
                 <div className="flex flex-wrap items-center gap-2 mt-2">
-                  <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">
+                  <Badge
+                    variant="outline"
+                    className="bg-orange-50 text-orange-700 border-orange-200"
+                  >
                     {getMemberName(task.assignedTo)}
                   </Badge>
                   <Badge
