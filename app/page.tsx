@@ -224,7 +224,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-50">
+    <div className="min-h-screen bg-linear-to-br from-orange-50 to-amber-50">
       {currentView === "dashboard" ? (
         <HouseholdManager
           houses={houses}

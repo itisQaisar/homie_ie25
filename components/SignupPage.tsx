@@ -35,7 +35,7 @@ export function SignupPage({ onSignup, onSwitchToLogin }: SignupPageProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-linear-to-br from-orange-50 to-amber-50 flex items-center justify-center p-4">
       <Card className="w-full max-w-md p-8">
         <div className="mb-8 text-center">
           <div className="flex items-center justify-center gap-3 mb-4">

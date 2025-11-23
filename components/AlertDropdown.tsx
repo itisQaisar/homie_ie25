@@ -50,7 +50,7 @@ export function AlertDropdown({ alerts, onAlertClick }: AlertDropdownProps) {
               >
                 <div className="flex items-start gap-2 w-full">
                   {!alert.seen && (
-                    <div className="w-2 h-2 bg-red-500 rounded-full mt-1.5 flex-shrink-0" />
+                    <div className="w-2 h-2 bg-red-500 rounded-full mt-1.5 shrink-0" />
                   )}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm truncate">{alert.title}</p>

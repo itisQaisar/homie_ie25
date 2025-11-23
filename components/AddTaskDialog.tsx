@@ -137,7 +137,7 @@ export function AddTaskDialog({
                     {formatDate(deadline)}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 z-[100]" align="start">
+                <PopoverContent className="w-auto p-0 z-100" align="start">
                   <Calendar
                     mode="single"
                     selected={deadline}

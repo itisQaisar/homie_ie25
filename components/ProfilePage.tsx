@@ -30,7 +30,7 @@ export function ProfilePage({
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-50 p-6">
+    <div className="min-h-screen bg-linear-to-br from-orange-50 to-amber-50 p-6">
       <div className="container mx-auto max-w-4xl">
         <Button
           variant="ghost"
@@ -82,7 +82,7 @@ export function ProfilePage({
                     className="p-3 bg-green-50 border border-green-200 rounded-lg"
                   >
                     <div className="flex items-start gap-2">
-                      <CheckCircle2 className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
+                      <CheckCircle2 className="w-5 h-5 text-green-600 mt-0.5 shrink-0" />
                       <div className="flex-1">
                         <h3 className="text-sm">{task.title}</h3>
                         {task.description && (
