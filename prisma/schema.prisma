@@ -1,0 +1,74 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// 1. User Model (Matches Firebase Auth)
+model User {
+  id        String   @id // This will store the Firebase UID
+  email     String   @unique
+  name      String?
+  createdAt DateTime @default(now())
+  
+  // Relations
+  ownedHouses House[]  @relation("Owner")
+  memberships Member[]
+}
+
+// 2. House Model
+model House {
+  id        String   @id @default(uuid())
+  name      String
+  createdAt DateTime @default(now())
+  ownerId   String
+  
+  // Relations
+  owner     User     @relation("Owner", fields: [ownerId], references: [id])
+  members   Member[]
+  tasks     Task[]
+}
+
+// 3. Member Model
+model Member {
+  id        String @id @default(uuid())
+  houseId   String
+  userId    String // Link to a registered user
+  role      String @default("member") // "admin" or "member"
+  
+  // Relations
+  house     House  @relation(fields: [houseId], references: [id], onDelete: Cascade)
+  user      User   @relation(fields: [userId], references: [id])
+  tasks     Task[]
+}
+
+// 4. Task Model
+model Task {
+  id          String    @id @default(uuid())
+  title       String
+  description String?
+  deadline    DateTime
+  completed   Boolean   @default(false)
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  
+  houseId     String
+  assignedTo  String?   // ID of the Member
+  
+  // Relations
+  house       House     @relation(fields: [houseId], references: [id], onDelete: Cascade)
+  assignee    Member?   @relation(fields: [assignedTo], references: [id])
+}
+
+// 5. Alert Model
+model Alert {
+  id        String   @id @default(uuid())
+  title     String
+  message   String
+  seen      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  userId    String   // Who gets this alert?
+}

@@ -3,15 +3,15 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation"; 
 import { createUserWithEmailAndPassword, updateProfile, sendEmailVerification } from "firebase/auth";
-import { doc, setDoc } from "firebase/firestore";
-import { auth, db } from "../lib/firebase";
+// REMOVED: import { doc, setDoc } from "firebase/firestore";
+// REMOVED: import { db } from "../lib/firebase";
+import { auth } from "../lib/firebase"; // Keep auth!
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Home, Eye, EyeOff, Loader2, AlertCircle } from "lucide-react";
 
-// 1. Define a type for the error structure
 interface FirebaseError {
   code?: string;
   message?: string;
@@ -40,32 +40,37 @@ export function SignupPage() {
     setLoading(true);
 
     try {
-      // 1. Create User
+      // 1. Create User in Firebase (Auth)
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // 2. Update Profile
+      // 2. Update Profile Display Name
       await updateProfile(user, { displayName: name });
 
-      // 3. Store Data in Firestore
-      await setDoc(doc(db, "users", user.uid), {
-        uid: user.uid,
-        name: name,
-        email: email,
-        createdAt: new Date().toISOString(),
-        isVerified: false
+      // 3. Sync User to NeonDB (Call our new API)
+      // THIS IS THE NEW PART
+      const response = await fetch("/api/auth/sync-user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          uid: user.uid,
+          email: email,
+          name: name
+        })
       });
 
-      // 4. Send Verification
+      if (!response.ok) {
+        throw new Error("Failed to save user data to database");
+      }
+
+      // 4. Send Verification Email
       await sendEmailVerification(user);
 
-      // 5. Redirect to verify page
+      // 5. Redirect
       router.push("/verify?email=" + encodeURIComponent(email)); 
 
     } catch (err: unknown) {
-      // 2. Cast the 'unknown' error to our defined type
       const firebaseError = err as FirebaseError;
-      
       console.error("Signup Error:", firebaseError);
 
       if (firebaseError.code === 'auth/email-already-in-use') {
