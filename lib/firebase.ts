@@ -1,4 +1,4 @@
-import { initializeApp, getApps } from "firebase/app";
+import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
@@ -11,8 +11,21 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-// Initialize Firebase (prevent double initialization in Next.js hot-reloading)
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+let app;
 
-export const auth = getAuth(app);
-export const db = getFirestore(app);
+// Only initialize Firebase if we are in the browser or if the keys are definitely present.
+if (typeof window !== 'undefined' || firebaseConfig.apiKey) {
+  if (getApps().length === 0) {
+    try {
+      app = initializeApp(firebaseConfig);
+    } catch (e) {
+      console.error("Firebase initialization failed:", e);
+    }
+  } else {
+    app = getApp();
+  }
+}
+
+// Use type assertion only if app exists, otherwise create placeholder objects
+export const auth = app ? getAuth(app) : {} as any;
+export const db = app ? getFirestore(app) : {} as any;
