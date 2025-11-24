@@ -36,7 +36,6 @@ export function LoginPage() {
       // Success - redirect to dashboard or home
       router.push("/"); 
     } catch (err: unknown) {
-      // We log the error to satisfy the linter and for debugging
       console.error("Login failed", err);
       setError("Invalid email or password.");
     } finally {
@@ -45,14 +44,38 @@ export function LoginPage() {
   };
 
   const handleGoogleSignIn = async () => {
+    setLoading(true); // Show loading state while popup is open
     try {
       const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
+
+      // --- NEW CODE: SYNC TO NEONDB ---
+      // Even if they are logging in, we run 'upsert' to ensure they exist in DB
+      const response = await fetch("/api/auth/sync-user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          uid: user.uid,
+          email: user.email,
+          // Use Google display name, or fallback to email prefix
+          name: user.displayName || user.email?.split("@")[0] || "Google User"
+        })
+      });
+
+      if (!response.ok) {
+        console.error("Failed to sync Google user to NeonDB");
+        // We might choose to let them in anyway, or show an error.
+        // For now, we let them in but log the error.
+      }
+      // --------------------------------
+
       router.push("/");
     } catch (err: unknown) {
-      // We log the error to satisfy the linter and for debugging
       console.error("Google sign-in failed", err);
       setError("Google sign in failed.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -124,7 +147,9 @@ export function LoginPage() {
           variant="outline"
           className="w-full border-orange-300 text-orange-600 hover:bg-orange-50"
           onClick={handleGoogleSignIn}
+          disabled={loading}
         >
+          {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
           Sign in with Google
         </Button>
 

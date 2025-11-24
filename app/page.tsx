@@ -1,25 +1,40 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/context/AuthContext"; // Ensure you have created this file
+import { useAuth } from "@/context/AuthContext";
 import { signOut } from "firebase/auth";
-import { auth } from "@/lib/firebase"; // Ensure you have created this file
+import { auth } from "@/lib/firebase"; 
 import { HouseholdManager } from "@/components/HouseholdManager";
 import { ProfilePage } from "@/components/ProfilePage";
 import { Loader2 } from "lucide-react";
 
-// --- Interfaces ---
+// --- Types ---
+
+interface ApiMember {
+  id: string;
+  houseId: string;
+  userId: string;
+  role: string;
+  user?: {
+    name?: string | null;
+    email: string;
+  } | null;
+}
+
 export interface House {
   id: string;
   name: string;
   createdAt: Date;
+  ownerId: string;
+  members?: ApiMember[]; 
 }
 
 export interface Member {
   id: string;
   houseId: string;
-  name: string;
+  userId: string;
+  name?: string;
   role?: string;
 }
 
@@ -28,7 +43,7 @@ export interface Task {
   houseId: string;
   title: string;
   description?: string;
-  assignedTo: string; // member id
+  assignedTo: string;
   deadline: Date;
   completed: boolean;
   completedAt?: Date;
@@ -44,165 +59,223 @@ export interface Alert {
 }
 
 export default function App() {
-  // 1. Get Global Auth State
   const { user, loading } = useAuth();
   const router = useRouter();
-
   const [currentView, setCurrentView] = useState<"dashboard" | "profile">("dashboard");
   
-  // 2. Local Data State
-  // NOTE: These currently reset on refresh. 
-  // The next step in development would be to replace these useStates with Firestore hooks.
+  // --- State ---
   const [houses, setHouses] = useState<House[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [selectedHouseId, setSelectedHouseId] = useState<string | null>(null);
+  const [dataLoading, setDataLoading] = useState(false);
 
-  // 3. Protect the Route: Redirect to login if not authenticated
+  // --- Helper: Safe Fetch ---
+  const safeFetch = async (url: string, options?: RequestInit) => {
+    try {
+      const res = await fetch(url, options);
+      
+      const contentType = res.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        const text = await res.text();
+        console.error(`🚨 API Error at ${url}: Expected JSON but got ${contentType}`);
+        console.error("Response Body (HTML Preview):", text.slice(0, 200)); 
+        throw new Error(`Server returned ${res.status} ${res.statusText} (Not JSON)`);
+      }
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || `Request failed with status ${res.status}`);
+      }
+
+      return await res.json();
+    } catch (error) {
+      console.error(`❌ Fetch Failed for ${url}`, error);
+      throw error;
+    }
+  };
+
+  // --- 1. Auth Protection ---
   useEffect(() => {
     if (!loading && !user) {
       router.push("/login");
     }
   }, [user, loading, router]);
 
-  const handleLogout = async () => {
+  // --- Data Fetching Wrappers ---
+
+  const fetchUserData = useCallback(async () => {
+    if (!user) return;
+    setDataLoading(true);
     try {
-      await signOut(auth);
-      // Redirect is handled by the useEffect above once user becomes null
+      const data = await safeFetch(`/api/houses?userId=${user.uid}`);
+      setHouses(data);
+      
+      if (data.length > 0) {
+        setSelectedHouseId((prev) => prev || data[0].id);
+      }
     } catch (error) {
-      console.error("Error signing out", error);
+      console.error("Error in fetchUserData:", error);
+    } finally {
+      setDataLoading(false);
     }
-  };
+  }, [user]);
 
-  // 4. Loading State
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-orange-50">
-        <Loader2 className="w-8 h-8 animate-spin text-orange-600" />
-      </div>
-    );
-  }
+  const fetchHouseDetails = useCallback(async (houseId: string) => {
+    try {
+      const data = await safeFetch(`/api/tasks?houseId=${houseId}`);
+      setTasks(data);
 
-  // 5. Guard Clause: Don't render dashboard if no user
-  if (!user) return null;
+      const currentHouse = houses.find(h => h.id === houseId);
+      
+      if (currentHouse && Array.isArray(currentHouse.members)) {
+        const rawMembers = currentHouse.members;
+        
+        const formattedMembers: Member[] = rawMembers.map((m) => ({
+          id: m.id,
+          houseId: m.houseId,
+          userId: m.userId,
+          name: m.user?.name || m.user?.email || "Unknown",
+          role: m.role
+        }));
+        setMembers(formattedMembers);
+      }
 
-  // --- Logic Functions ---
+    } catch (e) {
+      console.error("Error in fetchHouseDetails:", e);
+    }
+  }, [houses]);
 
-  const addHouse = (name: string) => {
-    const newHouse: House = {
-      id: crypto.randomUUID(),
-      name,
-      createdAt: new Date(),
-    };
-    setHouses([...houses, newHouse]);
-    if (!selectedHouseId) {
+  // --- 2. Effects to Trigger Fetches ---
+  
+  useEffect(() => {
+    if (user?.uid) {
+      fetchUserData();
+    }
+  }, [user, fetchUserData]);
+
+  useEffect(() => {
+    if (selectedHouseId) {
+      fetchHouseDetails(selectedHouseId);
+    }
+  }, [selectedHouseId, fetchHouseDetails]);
+
+  // --- Actions (API Calls) ---
+
+  const addHouse = async (name: string) => {
+    if (!user) return;
+    try {
+      const newHouse = await safeFetch("/api/houses", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, userId: user.uid })
+      });
+      
+      setHouses(prev => [...prev, newHouse]);
       setSelectedHouseId(newHouse.id);
+      addAlert("Success", `Household "${name}" created.`);
+    } catch (error: unknown) {
+      // Fix: Use 'unknown' and check type or cast safely
+      console.error(error);
+      const message = error instanceof Error ? error.message : "Failed to create household.";
+      addAlert("Error", message);
     }
   };
 
-  const deleteHouse = (id: string) => {
-    setHouses(houses.filter((h) => h.id !== id));
-    setMembers(members.filter((m) => m.houseId !== id));
-    setTasks(tasks.filter((t) => t.houseId !== id));
-    if (selectedHouseId === id) {
-      setSelectedHouseId(houses[0]?.id || null);
+  const addMember = async (houseId: string, email: string, role: string = "member") => {
+    try {
+      await safeFetch("/api/members", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ houseId, email, role })
+      });
+      
+      fetchUserData(); 
+      addAlert("Success", "Member added successfully.");
+    } catch (error: unknown) {
+      // Fix: Use 'unknown' and check type
+      console.error(error);
+      const message = error instanceof Error ? error.message : "Failed to add member";
+      alert(message);
     }
   };
 
-  const addMember = (houseId: string, name: string, role?: string) => {
-    const newMember: Member = {
-      id: crypto.randomUUID(),
-      houseId,
-      name,
-      role,
-    };
-    setMembers([...members, newMember]);
-
-    const houseName = houses.find((h) => h.id === houseId)?.name || "household";
-    addAlert("New Member Added", `${name} has been added to ${houseName}.`);
-  };
-
-  const deleteMember = (id: string) => {
-    setMembers(members.filter((m) => m.id !== id));
-    setTasks(
-      tasks.map((t) => (t.assignedTo === id ? { ...t, assignedTo: "" } : t))
-    );
-  };
-
-  const addTask = (
+  const addTask = async (
     houseId: string,
     title: string,
     description: string,
     assignedTo: string,
     deadline: Date
   ) => {
-    const newTask: Task = {
-      id: crypto.randomUUID(),
-      houseId,
-      title,
-      description,
-      assignedTo,
-      deadline,
-      completed: false,
-      createdAt: new Date(),
-    };
-    setTasks([...tasks, newTask]);
-  };
-
-  const toggleTaskCompletion = (id: string) => {
-    const task = tasks.find((t) => t.id === id);
-    if (task && !task.completed) {
-      const member = members.find((m) => m.id === task.assignedTo);
-      addAlert(
-        "Task Completed",
-        `"${task.title}" has been marked as complete${
-          member ? ` by ${member.name}` : ""
-        }.`
-      );
+    try {
+      await safeFetch("/api/tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, description, houseId, assignedTo, deadline })
+      });
+      
+      fetchHouseDetails(houseId);
+      addAlert("Task Created", `"${title}" added.`);
+    } catch (error) {
+      console.error("Error adding task:", error);
     }
-    setTasks(
-      tasks.map((t) =>
-        t.id === id
-          ? {
-              ...t,
-              completed: !t.completed,
-              completedAt: !t.completed ? new Date() : undefined,
-            }
-          : t
-      )
-    );
   };
 
-  const deleteTask = (id: string) => {
-    setTasks(tasks.filter((t) => t.id !== id));
+  const toggleTaskCompletion = async (id: string, currentStatus: boolean) => {
+    try {
+      // Optimistic Update
+      setTasks(tasks.map(t => t.id === id ? { ...t, completed: !currentStatus } : t));
+
+      await safeFetch("/api/tasks", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, completed: !currentStatus })
+      });
+      
+      if (!currentStatus) {
+         addAlert("Task Done", "Task marked as completed!");
+      }
+    } catch (error) {
+      console.error("Error toggling task:", error);
+      fetchHouseDetails(selectedHouseId!); 
+    }
   };
 
-  const updateTask = (id: string, updates: Partial<Task>) => {
+  const deleteHouse = (id: string) => {
+    setHouses(houses.filter(h => h.id !== id));
+    if (selectedHouseId === id) setSelectedHouseId(null);
+  };
+
+  const deleteMember = (id: string) => {
+    setMembers(members.filter(m => m.id !== id));
+  };
+
+  const deleteTask = async (id: string) => {
+    try {
+      await safeFetch(`/api/tasks?id=${id}`, { method: "DELETE" });
+      setTasks(tasks.filter(t => t.id !== id));
+    } catch (e) { 
+      console.error("Error deleting task:", e);
+    }
+  };
+
+  const onUpdateTask = (id: string, updates: Partial<Task>) => {
     setTasks(tasks.map((t) => (t.id === id ? { ...t, ...updates } : t)));
   };
 
+  // --- Helper Logic ---
   const addAlert = (title: string, message: string) => {
-    const newAlert: Alert = {
-      id: crypto.randomUUID(),
-      title,
-      message,
-      seen: false,
-      createdAt: new Date(),
-    };
-    setAlerts([...alerts, newAlert]);
+    const newAlert: Alert = { id: crypto.randomUUID(), title, message, seen: false, createdAt: new Date() };
+    setAlerts(prev => [newAlert, ...prev]);
+  };
+
+  const handleLogout = async () => {
+    await signOut(auth);
   };
 
   const markAlertAsSeen = (id: string) => {
     setAlerts(alerts.map((a) => (a.id === id ? { ...a, seen: true } : a)));
-  };
-
-  const leaveHousehold = () => {
-    if (selectedHouseId) {
-      setSelectedHouseId(null);
-      addAlert("Left Household", `You have left the household.`);
-    }
-    setCurrentView("dashboard");
   };
 
   const getTasksCompletedToday = () => {
@@ -211,14 +284,26 @@ export default function App() {
     return tasks.filter((task) => {
       if (!task.completed || !task.completedAt) return false;
       const completedDate = new Date(task.completedAt);
-      completedDate.setHours(0, 0, 0, 0);
-      return completedDate.getTime() === today.getTime();
+      return new Date(completedDate).setHours(0,0,0,0) === today.getTime();
     });
   };
 
-  // --- Render ---
+  const leaveHousehold = () => {
+    setSelectedHouseId(null);
+    setCurrentView("dashboard");
+  };
+
+  if (loading) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin" /></div>;
+  if (!user) return null;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-50">
+      {dataLoading && (
+        <div className="fixed top-0 left-0 w-full h-1 bg-orange-100 z-50">
+          <div className="h-full bg-orange-500 animate-pulse"></div>
+        </div>
+      )}
+
       {currentView === "dashboard" ? (
         <HouseholdManager
           houses={houses}
@@ -226,7 +311,6 @@ export default function App() {
           tasks={tasks}
           alerts={alerts}
           selectedHouseId={selectedHouseId}
-          // Map Firebase User to component props
           userName={user.displayName || user.email?.split('@')[0] || "User"}
           onSelectHouse={setSelectedHouseId}
           onAddHouse={addHouse}
@@ -236,7 +320,7 @@ export default function App() {
           onAddTask={addTask}
           onToggleTask={toggleTaskCompletion}
           onDeleteTask={deleteTask}
-          onUpdateTask={updateTask}
+          onUpdateTask={onUpdateTask}
           onLogout={handleLogout}
           onProfileClick={() => setCurrentView("profile")}
           onAlertClick={markAlertAsSeen}
