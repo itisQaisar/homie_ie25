@@ -1,53 +1,41 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { logAction } from "@/lib/logger"; // <-- New Import
 
 export async function POST(request: Request) {
-  try {
-    const body = await request.json();
-    const { uid, email, name } = body;
+  const requestBody = await request.json().catch(() => ({}));
+  const { uid, email, name } = requestBody;
 
+  try {
     // SAFETY CHECK: Ensure we actually have a User ID
     if (!uid || !email) {
+      // LOG FAILURE
+      await logAction({
+        action: 'AUTH_SYNC_MISSING_DATA',
+        details: { body: requestBody },
+        success: false
+      });
       return NextResponse.json(
         { success: false, error: "Missing required fields (uid, email)" },
         { status: 400 }
       );
     }
 
-    // --- CONFLICT RESOLUTION LOGIC ---
-    // Check if a user with this email exists but has a DIFFERENT ID.
-    // This happens if you delete a user from Firebase but not NeonDB, then sign up again.
-    const existingUser = await prisma.user.findUnique({
-      where: { email },
-    });
+    // Check if user exists before upsert to determine if it's REGISTER or LOGIN
+    const existingUser = await prisma.user.findUnique({ where: { email } });
 
     if (existingUser && existingUser.id !== uid) {
-      console.log(`Stale user detected (Email: ${email}). Cleaning up old ID: ${existingUser.id}`);
-      
-      // We need to delete the old user to make room for the new one.
-      // Due to Foreign Keys, we must delete dependent data first or rely on Cascades.
-      // Since we can't rely on Cascades being set up perfectly in the DB yet, we do a manual cleanup.
-      
-      // 1. Delete Memberships linked to old user
-      await prisma.member.deleteMany({
-        where: { userId: existingUser.id }
+      // --- CONFLICT RESOLUTION (Deletion of Stale Data) ---
+      await logAction({
+          action: 'STALE_USER_CLEANUP',
+          details: { oldId: existingUser.id, newId: uid, email: email },
+          success: true
       });
-
-      // 2. Delete Houses owned by old user 
-      // (Note: Ideally this should cascade delete tasks, but we'll try the user delete which might handle it if schema allows)
-      await prisma.house.deleteMany({
-        where: { ownerId: existingUser.id }
-      });
-
-      // 3. Finally, delete the stale user record
-      await prisma.user.delete({
-        where: { id: existingUser.id }
-      });
-      
-      console.log("Stale user cleanup complete.");
+      await prisma.member.deleteMany({ where: { userId: existingUser.id } });
+      await prisma.house.deleteMany({ where: { ownerId: existingUser.id } });
+      await prisma.user.delete({ where: { id: existingUser.id } });
     }
-    // --------------------------------
-
+    
     // Upsert: Create user if not exists, Update if they do
     const user = await prisma.user.upsert({
       where: { id: uid },
@@ -59,12 +47,24 @@ export async function POST(request: Request) {
       },
     });
 
+    // LOG SUCCESSFUL SYNC/LOGIN
+    await logAction({
+        userId: user.id,
+        action: existingUser ? 'USER_LOGIN_SYNC' : 'USER_REGISTERED',
+        details: { email: user.email, method: request.headers.get('x-auth-method') || 'Email/Password' }
+    });
+
     return NextResponse.json({ success: true, user });
   } catch (error: unknown) {
+    // LOG CRITICAL FAILURE
+    const errorMessage = error instanceof Error ? error.message : "Database Sync Failed";
+    await logAction({
+        action: 'AUTH_SYNC_FAILED',
+        details: { error: errorMessage, requestBody: requestBody },
+        success: false
+    });
     console.error("Database Sync Error:", error);
     
-    const errorMessage = error instanceof Error ? error.message : "Database Sync Failed";
-
     return NextResponse.json(
       { success: false, error: errorMessage }, 
       { status: 500 }
