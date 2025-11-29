@@ -72,3 +72,14 @@ model Alert {
   createdAt DateTime @default(now())
   userId    String   // Who gets this alert?
 }
+
+
+// 6. Audit Log Model (For tracking user behavior and system actions)
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?  // Optional: User who performed the action (can be null for system errors)
+  action    String   // e.g., 'HOUSE_CREATED', 'TASK_COMPLETED', 'LOGIN', 'SYSTEM_ERROR'
+  details   Json?    // Stores unstructured data like old/new values, IPs, browser agents
+  timestamp DateTime @default(now())
+  success   Boolean  @default(true) // Whether the action succeeded
+}
