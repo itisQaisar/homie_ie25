@@ -8,6 +8,7 @@ import {
   User,
   Home,
   Calendar,
+  Pencil,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -18,6 +19,7 @@ import { AddMemberDialog } from "./AddMemberDialog";
 import { AddHouseDialog } from "./AddHouseDialog";
 import { AlertDropdown } from "./AlertDropdown";
 import { House, Member, Task, Alert } from "@/app/page";
+import { EditTaskDialog } from "./EditTaskDialog";
 
 interface HouseholdManagerProps {
   houses: House[];
@@ -61,7 +63,7 @@ export function HouseholdManager({
   onAddTask,
   onToggleTask,
   onDeleteTask,
-  // onUpdateTask,
+  onUpdateTask,
   onLogout,
   onProfileClick,
   onAlertClick,
@@ -69,6 +71,7 @@ export function HouseholdManager({
   const [showAddHouse, setShowAddHouse] = useState(false);
   const [showAddMember, setShowAddMember] = useState(false);
   const [showAddTask, setShowAddTask] = useState(false);
+  const [taskToEdit, setTaskToEdit] = useState<Task | null>(null);
 
   // 1. Filter Tasks Logic (Active vs Done)
   const currentHouseTasks = tasks.filter((t) => t.houseId === selectedHouseId);
@@ -181,6 +184,7 @@ export function HouseholdManager({
                       members={members}
                       onToggle={() => onToggleTask(task.id, task.completed)}
                       onDelete={() => onDeleteTask(task.id)}
+                      onEdit={() => setTaskToEdit(task)}
                     />
                   ))
                 )}
@@ -201,6 +205,7 @@ export function HouseholdManager({
                         members={members}
                         onToggle={() => onToggleTask(task.id, task.completed)}
                         onDelete={() => onDeleteTask(task.id)}
+                        onEdit={() => setTaskToEdit(task)}
                         isCompleted={true}
                       />
                     ))}
@@ -266,6 +271,21 @@ export function HouseholdManager({
           />
         </>
       )}
+
+      {taskToEdit && (
+        <EditTaskDialog
+          open={!!taskToEdit} // Open if taskToEdit is not null
+          onOpenChange={(open) => {
+            if (!open) setTaskToEdit(null); // Close by clearing the state
+          }}
+          task={taskToEdit}
+          members={currentHouseMembers}
+          onUpdate={(updates) => {
+            onUpdateTask(taskToEdit.id, updates);
+            setTaskToEdit(null); // Close dialog on successful update
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -277,6 +297,7 @@ interface TaskCardProps {
   members: Member[];
   onToggle: () => void;
   onDelete: () => void;
+  onEdit: () => void;
   isCompleted?: boolean;
 }
 
@@ -285,6 +306,7 @@ function TaskCard({
   members,
   onToggle,
   onDelete,
+  onEdit,
   isCompleted = false,
 }: TaskCardProps) {
   const assigneeName =
@@ -349,14 +371,26 @@ function TaskCard({
           </div>
         </div>
 
-        <button
-          onClick={onDelete}
-          aria-label="Delete task"
-          title="Delete task"
-          className="text-gray-400 hover:text-red-500 p-1"
-        >
-          <Trash2 className="w-4 h-4" />
-        </button>
+        <div className="flex flex-col gap-1 shrink-0">
+          {!isCompleted && (
+            <button
+              onClick={onEdit}
+              aria-label="Edit task"
+              title="Edit task"
+              className="text-gray-400 hover:text-orange-500 p-1"
+            >
+              <Pencil className="w-4 h-4" />
+            </button>
+          )}
+          {/* <button
+            onClick={onDelete}
+            aria-label="Delete task"
+            title="Delete task"
+            className="text-gray-400 hover:text-red-500 p-1"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button> */}
+        </div>
       </div>
     </Card>
   );
