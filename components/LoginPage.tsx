@@ -2,29 +2,48 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { signInWithEmailAndPassword, signOut, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import {
+  signInWithEmailAndPassword,
+  signOut,
+  GoogleAuthProvider,
+  signInWithPopup,
+  sendPasswordResetEmail,
+} from "firebase/auth";
 import { auth } from "../lib/firebase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
-import { Home, Eye, EyeOff, Loader2, AlertCircle } from "lucide-react";
+import {
+  Home,
+  Eye,
+  EyeOff,
+  Loader2,
+  AlertCircle,
+  CheckCircle,
+} from "lucide-react";
 
 export function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [resetSuccess, setResetSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setResetSuccess(false);
     setLoading(true);
 
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await signInWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
       const user = userCredential.user;
 
       if (!user.emailVerified) {
@@ -34,7 +53,7 @@ export function LoginPage() {
       }
 
       // Success - redirect to dashboard or home
-      router.push("/"); 
+      router.push("/");
     } catch (err: unknown) {
       console.error("Login failed", err);
       setError("Invalid email or password.");
@@ -59,8 +78,8 @@ export function LoginPage() {
           uid: user.uid,
           email: user.email,
           // Use Google display name, or fallback to email prefix
-          name: user.displayName || user.email?.split("@")[0] || "Google User"
-        })
+          name: user.displayName || user.email?.split("@")[0] || "Google User",
+        }),
       });
 
       if (!response.ok) {
@@ -79,23 +98,58 @@ export function LoginPage() {
     }
   };
 
+  const handleForgotPassword = async () => {
+    if (!email) {
+      setError("Please enter your email address above to reset your password.");
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+    setResetSuccess(false);
+
+    try {
+      await sendPasswordResetEmail(auth, email);
+      // Success: notify the user to check their email
+      setResetSuccess(true);
+      setError("");
+    } catch (err: unknown) {
+      console.error("Password reset failed", err);
+      // Handle Firebase errors (e.g., auth/user-not-found)
+      setError("Failed to send reset email. Please check the email address.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-linear-to-br from-orange-50 to-amber-50 flex items-center justify-center p-4">
       <Card className="w-full max-w-md p-8">
         <div className="mb-8 text-center">
           <div className="flex items-center justify-center gap-3 mb-4">
             <Home className="w-10 h-10 text-orange-600" />
             <h1 className="text-3xl font-bold">Homie</h1>
           </div>
-          <p className="text-gray-600">Sign in to manage your household tasks</p>
+          <p className="text-gray-600">
+            Sign in to manage your household tasks
+          </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
-             <div className="bg-red-50 text-red-600 p-3 rounded-md text-sm flex items-center gap-2">
-               <AlertCircle className="w-4 h-4" /> {error}
-             </div>
+            <div className="bg-red-50 text-red-600 p-3 rounded-md text-sm flex items-center gap-2">
+              <AlertCircle className="w-4 h-4" /> {error}
+            </div>
           )}
+
+          {/* 3. NEW SUCCESS MESSAGE DISPLAY */}
+          {resetSuccess && (
+            <div className="bg-green-50 text-green-700 p-3 rounded-md text-sm flex items-center gap-2">
+              <CheckCircle className="w-4 h-4" /> Password reset email sent!
+              Check your inbox.
+            </div>
+          )}
+          {/* END NEW SUCCESS MESSAGE */}
 
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
@@ -124,12 +178,33 @@ export function LoginPage() {
               onClick={() => setShowPassword(!showPassword)}
               className="absolute right-3 top-8 text-gray-500 hover:text-gray-700"
             >
-              {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              {showPassword ? (
+                <EyeOff className="w-5 h-5" />
+              ) : (
+                <Eye className="w-5 h-5" />
+              )}
             </button>
           </div>
 
+          {/* 4. NEW FORGOT PASSWORD LINK */}
+          <div className="flex justify-end pt-0 mt-0">
+            <button
+              type="button"
+              onClick={handleForgotPassword}
+              className="text-sm text-orange-600 hover:underline disabled:opacity-50"
+              disabled={loading}
+            >
+              Forgot Password?
+            </button>
+          </div>
+          {/* END NEW FORGOT PASSWORD LINK */}
+
           <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : "Sign In"}
+            {loading && !resetSuccess ? (
+              <Loader2 className="w-4 h-4 animate-spin mr-2" />
+            ) : (
+              "Sign In"
+            )}
           </Button>
         </form>
 
@@ -138,7 +213,9 @@ export function LoginPage() {
             <div className="w-full border-t border-gray-300"></div>
           </div>
           <div className="relative flex justify-center text-sm">
-            <span className="bg-white px-2 text-gray-500">Or continue with</span>
+            <span className="bg-white px-2 text-gray-500">
+              Or continue with
+            </span>
           </div>
         </div>
 
@@ -155,7 +232,10 @@ export function LoginPage() {
 
         <div className="mt-6 text-center text-sm">
           <span className="text-gray-600">No account? </span>
-          <button onClick={() => router.push("/signup")} className="text-orange-600 hover:underline">
+          <button
+            onClick={() => router.push("/signup")}
+            className="text-orange-600 hover:underline"
+          >
             Sign up
           </button>
         </div>

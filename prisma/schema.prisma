@@ -30,14 +30,18 @@ model House {
   owner     User     @relation("Owner", fields: [ownerId], references: [id])
   members   Member[]
   tasks     Task[]
+  
+  // FIX: Added opposite relation for AuditLogs
+  auditLogs AuditLog[] 
 }
 
 // 3. Member Model
 model Member {
-  id        String @id @default(uuid())
+  id        String   @id @default(uuid())
   houseId   String
   userId    String // Link to a registered user
-  role      String @default("member") // "admin" or "member"
+  role      String @default("member") 
+  status    String   @default("PENDING") // PENDING, ACCEPTED, REJECTED 
   
   // Relations
   house     House  @relation(fields: [houseId], references: [id], onDelete: Cascade)
@@ -73,13 +77,16 @@ model Alert {
   userId    String   // Who gets this alert?
 }
 
-
-// 6. Audit Log Model (For tracking user behavior and system actions)
+// 6. Audit Log Model
 model AuditLog {
   id        String   @id @default(uuid())
-  userId    String?  // Optional: User who performed the action (can be null for system errors)
-  action    String   // e.g., 'HOUSE_CREATED', 'TASK_COMPLETED', 'LOGIN', 'SYSTEM_ERROR'
-  details   Json?    // Stores unstructured data like old/new values, IPs, browser agents
+  userId    String?  
+  houseId   String?  
+  action    String   
+  details   Json?    
   timestamp DateTime @default(now())
-  success   Boolean  @default(true) // Whether the action succeeded
+  success   Boolean  @default(true)
+
+  // Relations
+  house     House?   @relation(fields: [houseId], references: [id], onDelete: SetNull)
 }

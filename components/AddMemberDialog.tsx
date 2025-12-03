@@ -48,7 +48,8 @@ export function AddMemberDialog({
         <DialogHeader>
           <DialogTitle>Add Member</DialogTitle>
           <DialogDescription>
-            Enter the email address of the user you want to add. They must already have a Homie account.
+            Enter the email address of the user you want to add. They must
+            already have a Homie account.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="grid gap-4 py-4">
@@ -77,14 +78,18 @@ export function AddMemberDialog({
             </Select>
           </div>
           <DialogFooter>
-            <Button 
-              type="button" 
-              variant="outline" 
+            <Button
+              type="button"
+              variant="outline"
               onClick={() => onOpenChange(false)}
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={!email.trim()} className="bg-orange-600 hover:bg-orange-700">
+            <Button
+              type="submit"
+              disabled={!email.trim()}
+              className="bg-orange-600 hover:bg-orange-700"
+            >
               Add Member
             </Button>
           </DialogFooter>

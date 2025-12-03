@@ -29,7 +29,7 @@ export function HouseSelector({
     <div>
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-gray-700">Your Households</h3>
-        <div className="flex items-center gap-2">
+        {/* <div className="flex items-center gap-2">
           <Button
             variant="outline"
             size="sm"
@@ -39,16 +39,7 @@ export function HouseSelector({
             <User className="w-4 h-4" />
           </Button>
           <AlertDropdown alerts={alerts} onAlertClick={onAlertClick} />
-          {/* <Button
-            variant="outline"
-            size="sm"
-            onClick={onAddHouse}
-            className="border-orange-300 text-orange-600 hover:bg-orange-50"
-          >
-            <Plus className="w-4 h-4 mr-1" />
-            Add Household
-          </Button> */}
-        </div>
+        </div> */}
       </div>
       <div className="flex gap-3 flex-wrap">
         {houses.map((house) => (
@@ -64,7 +55,7 @@ export function HouseSelector({
             <div className="flex items-center gap-3">
               <Home className="w-5 h-5" />
               <span>{house.name}</span>
-              <Button
+              {/* <Button
                 variant="ghost"
                 size="sm"
                 className={`ml-2 opacity-0 group-hover:opacity-100 transition-opacity ${
@@ -78,7 +69,7 @@ export function HouseSelector({
                 }}
               >
                 <Trash2 className="w-4 h-4" />
-              </Button>
+              </Button> */}
             </div>
           </Card>
         ))}
