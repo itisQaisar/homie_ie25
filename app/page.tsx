@@ -393,6 +393,46 @@ export default function App() {
     });
   };
 
+  const updateHouse = async (id: string, name: string) => {
+    if (!user) return;
+    try {
+      // 1. API CALL to update the house name
+      const updatedData = await safeFetch("/api/houses", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, name }),
+      });
+
+      // 2. Local State Update (Crucial for immediate UI feedback)
+      setHouses((prevHouses) =>
+        prevHouses.map((h) =>
+          h.id === id ? { ...h, name: updatedData.name } : h
+        )
+      );
+
+      addAlert("Success", `Household name updated to "${name}"`);
+
+      // LOG SUCCESS
+      logAction({
+        userId: user.uid,
+        action: "HOUSE_UPDATED",
+        details: { houseId: id, newName: name },
+      });
+    } catch (error: unknown) {
+      console.error("Error updating house:", error);
+      const message =
+        error instanceof Error ? error.message : "Failed to update house name.";
+      addAlert("Error", message);
+      // LOG FAILURE
+      logAction({
+        userId: user.uid,
+        action: "HOUSE_UPDATE_FAILED",
+        details: { houseId: id, error: message },
+        success: false,
+      });
+    }
+  };
+
   // --- Helper Logic ---
   const addAlert = (title: string, message: string) => {
     const newAlert: Alert = {
@@ -548,6 +588,7 @@ export default function App() {
             logAction({ userId: user?.uid, action: "NAV_PROFILE_VIEW" });
           }}
           onAlertClick={markAlertAsSeen}
+          onUpdateHouse={updateHouse}
         />
       ) : (
         <ProfilePage

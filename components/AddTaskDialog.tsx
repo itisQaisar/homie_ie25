@@ -44,7 +44,7 @@ export function AddTaskDialog({
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [assignedTo, setAssignedTo] = useState("");
-  const [deadline, setDeadline] = useState<Date | undefined>(undefined);
+  const [deadline, setDeadline] = useState<Date | undefined>(new Date());
   const [calendarOpen, setCalendarOpen] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -54,7 +54,7 @@ export function AddTaskDialog({
       setTitle("");
       setDescription("");
       setAssignedTo("");
-      setDeadline(undefined);
+      setDeadline(new Date());
       onOpenChange(false);
     }
   };

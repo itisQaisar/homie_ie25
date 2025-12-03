@@ -20,6 +20,18 @@ import { AddHouseDialog } from "./AddHouseDialog";
 import { AlertDropdown } from "./AlertDropdown";
 import { House, Member, Task, Alert } from "@/app/page";
 import { EditTaskDialog } from "./EditTaskDialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { EditHouseDialog } from "./EditHouseDialpg";
 
 interface HouseholdManagerProps {
   houses: House[];
@@ -46,6 +58,7 @@ interface HouseholdManagerProps {
   onLogout: () => void;
   onProfileClick: () => void;
   onAlertClick: (id: string) => void;
+  onUpdateHouse: (id: string, name: string) => void;
 }
 
 export function HouseholdManager({
@@ -67,11 +80,13 @@ export function HouseholdManager({
   onLogout,
   onProfileClick,
   onAlertClick,
+  onUpdateHouse,
 }: HouseholdManagerProps) {
   const [showAddHouse, setShowAddHouse] = useState(false);
   const [showAddMember, setShowAddMember] = useState(false);
   const [showAddTask, setShowAddTask] = useState(false);
   const [taskToEdit, setTaskToEdit] = useState<Task | null>(null);
+  const [showEditHouse, setShowEditHouse] = useState(false);
 
   // 1. Filter Tasks Logic (Active vs Done)
   const currentHouseTasks = tasks.filter((t) => t.houseId === selectedHouseId);
@@ -82,6 +97,8 @@ export function HouseholdManager({
   const currentHouseMembers = members.filter(
     (m) => m.houseId === selectedHouseId
   );
+
+  const currentHouse = houses.find((h) => h.id === selectedHouseId);
 
   return (
     <div className="max-w-7xl mx-auto p-4 md:p-6">
@@ -123,16 +140,69 @@ export function HouseholdManager({
       <div className="grid lg:grid-cols-12 gap-6">
         {/* LEFT COLUMN: Houses & Members */}
         <div className="lg:col-span-4 space-y-6">
-          <HouseSelector
-            houses={houses}
-            selectedHouseId={selectedHouseId}
-            onSelectHouse={onSelectHouse}
-            onAddHouse={() => setShowAddHouse(true)}
-            onDeleteHouse={onDeleteHouse}
-            alerts={alerts}
-            onProfileClick={onProfileClick}
-            onAlertClick={onAlertClick}
-          />
+          <div className="grid grid-cols-2">
+            <HouseSelector
+              houses={houses}
+              selectedHouseId={selectedHouseId}
+              onSelectHouse={onSelectHouse}
+              onAddHouse={() => setShowAddHouse(true)}
+              onDeleteHouse={onDeleteHouse}
+              alerts={alerts}
+              onProfileClick={onProfileClick}
+              onAlertClick={onAlertClick}
+            />
+
+            {/* --- EDIT AND DELETE BUTTONS --- */}
+            {selectedHouseId && (
+              <div className="flex flex-wrap gap-2 items-end justify-end">
+                {/* Edit Button */}
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setShowEditHouse(true)}
+                  title="Edit Household Name"
+                  className="w-8 h-8 text-gray-600 hover:text-orange-600 border-gray-300 hover:border-orange-300 bg-white"
+                >
+                  <Pencil className="w-4 h-4" />
+                </Button>
+
+                {/* Delete Button (Uses AlertDialog for confirmation) */}
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      title="Delete Household"
+                      className="w-8 h-8 text-gray-600 hover:text-red-600 border-gray-300 hover:border-red-300 bg-white"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>
+                        Delete Household: {currentHouse?.name}
+                      </AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This will permanently delete the household, all its
+                        tasks, and remove all members. This action cannot be
+                        undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={() => onDeleteHouse(selectedHouseId)}
+                        className="bg-red-600 hover:bg-red-700"
+                      >
+                        Yes, Delete Household
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+            )}
+          </div>
 
           {selectedHouseId && (
             <Card className="p-6">
@@ -271,6 +341,17 @@ export function HouseholdManager({
           />
         </>
       )}
+      {currentHouse && (
+        <EditHouseDialog
+          open={showEditHouse}
+          onOpenChange={setShowEditHouse}
+          house={currentHouse}
+          onUpdateName={(newName) => {
+            onUpdateHouse(currentHouse.id, newName);
+            setShowEditHouse(false); // Close on success
+          }}
+        />
+      )}
 
       {taskToEdit && (
         <EditTaskDialog
@@ -350,7 +431,10 @@ function TaskCard({
             {task.title}
           </h4>
           {task.description && (
-            <p className="text-sm text-gray-500 mt-1 truncate">
+            <p
+              className="text-sm text-gray-600 mt-1"
+              style={{ whiteSpace: "pre-wrap" }}
+            >
               {task.description}
             </p>
           )}
@@ -371,25 +455,53 @@ function TaskCard({
           </div>
         </div>
 
-        <div className="flex flex-col gap-1 shrink-0">
+        <div className="flex gap-1 shrink-0">
           {!isCompleted && (
-            <button
-              onClick={onEdit}
-              aria-label="Edit task"
-              title="Edit task"
-              className="text-gray-400 hover:text-orange-500 p-1"
-            >
-              <Pencil className="w-4 h-4" />
-            </button>
+            <>
+              <button
+                onClick={onEdit}
+                aria-label="Edit task"
+                title="Edit task"
+                className="text-gray-400 hover:text-orange-500 p-1 cursor-pointer"
+              >
+                <Pencil className="w-4 h-4" />
+              </button>
+
+              {/* --- NEW ALERT DIALOG WRAPPER --- */}
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <button
+                    aria-label="Delete task"
+                    title="Delete task"
+                    className="text-gray-400 hover:text-red-500 p-1 cursor-pointer"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>
+                      Are you absolutely sure?
+                    </AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This action cannot be undone. This will permanently delete
+                      the task **"{task.title}"** from the household.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={onDelete}
+                      className="bg-red-600 hover:bg-red-700"
+                    >
+                      Delete Task
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+              {/* --- END ALERT DIALOG WRAPPER --- */}
+            </>
           )}
-          {/* <button
-            onClick={onDelete}
-            aria-label="Delete task"
-            title="Delete task"
-            className="text-gray-400 hover:text-red-500 p-1"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button> */}
         </div>
       </div>
     </Card>
