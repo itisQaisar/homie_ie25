@@ -74,12 +74,16 @@ model Alert {
 }
 
 
-// 6. Audit Log Model (For tracking user behavior and system actions)
+// 6. Audit Log Model (Updated for Analytics)
 model AuditLog {
   id        String   @id @default(uuid())
-  userId    String?  // Optional: User who performed the action (can be null for system errors)
-  action    String   // e.g., 'HOUSE_CREATED', 'TASK_COMPLETED', 'LOGIN', 'SYSTEM_ERROR'
-  details   Json?    // Stores unstructured data like old/new values, IPs, browser agents
+  userId    String?  
+  houseId   String?  // <-- NEW: Links action to specific house
+  action    String   // e.g., 'TASK_CREATED', 'TASK_COMPLETED'
+  details   Json?    
   timestamp DateTime @default(now())
-  success   Boolean  @default(true) // Whether the action succeeded
+  success   Boolean  @default(true)
+
+  // Relations (Optional: allows cascade delete if house is removed)
+  house     House?   @relation(fields: [houseId], references: [id], onDelete: SetNull)
 }
