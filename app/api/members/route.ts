@@ -59,6 +59,53 @@ export async function POST(request: Request) {
   }
 }
 
+export async function DELETE(request: Request) {
+  try {
+    // 1. Extract the Member ID from the URL query parameters
+    const { searchParams } = new URL(request.url);
+    const memberId = searchParams.get("id");
+
+    if (!memberId) {
+      return NextResponse.json(
+        { error: "Member ID is required for deletion." },
+        { status: 400 }
+      );
+    }
+
+    // 2. Delete the member record
+    // This effectively removes the user's membership from that household.
+    const deletedMember = await prisma.member.delete({
+      where: { id: memberId },
+    });
+
+    // 3. Return a success response
+    return NextResponse.json(
+      { success: true, deletedId: deletedMember.id },
+      { status: 200 }
+    );
+  } catch (error: unknown) {
+    console.error("Delete Member Error:", error);
+
+    // Check for Prisma error code (P2025) which indicates record not found
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      error.code === "P2025"
+    ) {
+      return NextResponse.json(
+        { error: "Membership not found or already deleted." },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json(
+      { error: "Failed to delete member record." },
+      { status: 500 }
+    );
+  }
+}
+
 // import { NextResponse } from "next/server";
 // import { prisma } from "@/lib/db";
 

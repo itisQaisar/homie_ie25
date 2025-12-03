@@ -425,11 +425,82 @@ export default function App() {
     });
   };
 
-  const leaveHousehold = () => {
-    setSelectedHouseId(null);
-    setCurrentView("dashboard");
-    logAction({ userId: user?.uid, action: "HOUSEHOLD_LEFT" });
-  };
+  const leaveHousehold = useCallback(async () => {
+    if (!user || !selectedHouseId) {
+      // Log an attempt to leave without a user or selected house
+      logAction({
+        userId: user?.uid,
+        action: "HOUSEHOLD_LEAVE_BLOCKED",
+        details: { reason: "Missing user or selectedHouseId" },
+        success: false,
+      });
+      return;
+    }
+
+    // 1. Identify the unique Member ID for the current user/house combination
+    const currentMember = members.find(
+      (m) => m.userId === user.uid && m.houseId === selectedHouseId
+    );
+
+    if (!currentMember) {
+      const message =
+        "Could not identify your membership to leave the household.";
+      console.error(message);
+      addAlert("Error", message);
+      logAction({
+        userId: user.uid,
+        action: "HOUSEHOLD_LEAVE_FAILED",
+        details: { error: message },
+        success: false,
+      });
+      // Crucial: Throw an error for the ProfilePage component to catch and display
+      throw new Error(message);
+    }
+
+    try {
+      // 2. API CALL: DELETE the user's membership record
+      // We use the unique Member ID to target the record for deletion.
+      await safeFetch(`/api/members?id=${currentMember.id}`, {
+        method: "DELETE",
+      });
+
+      // 3. SUCCESSFUL STATE CLEANUP (Synchronize UI state with DB)
+
+      // a) **Remove the House locally:** The user no longer belongs to this house.
+      setHouses((h) => h.filter((house) => house.id !== selectedHouseId));
+
+      // b) **Clear selected house ID:** This triggers the "No House Selected" view.
+      setSelectedHouseId(null);
+
+      // c) **Remove the Member locally:** (Optional, as the house list removal handles the view change)
+      setMembers((m) => m.filter((member) => member.id !== currentMember.id));
+
+      // d) Log the action
+      logAction({
+        userId: user.uid,
+        action: "HOUSEHOLD_LEFT",
+        details: { memberId: currentMember.id, houseId: selectedHouseId },
+      });
+
+      addAlert("Success", `Successfully left the household.`);
+      // The ProfilePage component will now call onBack() after this async function resolves.
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Failed to leave household due to a server error.";
+      console.error("Error leaving household:", error);
+      addAlert("Error", message);
+      logAction({
+        userId: user.uid,
+        action: "HOUSEHOLD_LEAVE_API_FAILED",
+        details: { error: message },
+        success: false,
+      });
+      // Re-throw the error so the ProfilePage component handles the UI state (e.g., showing the error)
+      throw new Error(message);
+    }
+  }, [user, selectedHouseId, members, safeFetch, addAlert]);
 
   if (loading)
     return (
